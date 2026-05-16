@@ -50,14 +50,3 @@ struct command_line *parse_input()
 	return curr_command;
 }
 
-int main()
-{
-	struct command_line *curr_command;
-
-	while(true)
-	{
-		curr_command = parse_input();
-
-	}
-	return EXIT_SUCCESS;
-}
