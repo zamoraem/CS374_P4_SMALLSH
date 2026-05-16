@@ -42,6 +42,11 @@ struct command_line *parse_input()
 
 	// Tokenize the input
 	char *token = strtok(input, " \n");
+
+	// check for special cases here - exit or cd? who takes args?
+	printf("here is the first part of input from user: %s\n", token);
+
+
 	while(token){
 		if(!strcmp(token,"<")){
 			curr_command->input_file = strdup(strtok(NULL," \n"));
@@ -54,6 +59,7 @@ struct command_line *parse_input()
 		}
 		token=strtok(NULL," \n");
 	}
+
 	return curr_command;
 }
 
@@ -180,9 +186,7 @@ int main()
 	while(true)
 	{
 		curr_command = parse_input();
-
-		printf("here is the input file name saved aka first text: %s\n", curr_command->input_file);
-
+		// check for special cases
 	}
 
 	return EXIT_SUCCESS;
