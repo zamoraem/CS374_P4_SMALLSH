@@ -1,4 +1,4 @@
-/**
+/*
  * A sample program for parsing a command line. If you find it useful,
  * feel free to adapt this code for Assignment 4.
  * Do fix memory leaks and any additional issues you find.
@@ -12,6 +12,12 @@
 
 #define INPUT_LENGTH 2048
 #define MAX_ARGS		 512
+
+// prototypes 
+int specialCasesCheck(char input[INPUT_LENGTH]);
+void printLs(void);
+void userExit(void);
+void userCd(char *directory);
 
 
 struct command_line
@@ -72,7 +78,7 @@ char *newargv[] = { "/bin/ls", NULL };
 /* killMyProcesses()
 *
 * 	Description: 
-*				should i take as input the current path?
+*				should i take as input the current path? or pid and ppid??
 *	
 */
 
@@ -87,6 +93,15 @@ char *newargv[] = { "/bin/ls", NULL };
 *			before it terminates itself.
 *
 */
+void userExit(void){
+	// killMyProcesses()
+
+	// do i need to pass a pid or something, or ppid?
+	
+	// terminate myself
+
+	return;
+}
 
 
 /* BUILT IN COMMAND: userCd()
@@ -94,12 +109,20 @@ char *newargv[] = { "/bin/ls", NULL };
 * 	Description: changes the working directory of smallsh
 *
 *	Input: Can take 0 or 1 argument
-*			- No argument will change to the directory
+*		- No argument will change to the directory
 *				specified in the HOME environment variable
-*			- Argument:  the path of a directory to change to
-*	Supports absolute and relative paths
+*		- Argument:  the path of a directory to change to
+*				(Supports absolute and relative paths)
 *
 */
+void userCd(char *directory){
+	// handle 0 argument case, go HOME
+	if( directory == NULL){
+		// go home
+	}
+	// handle 1 argument case, follow the path
+
+}
 
 
 /* BUILT IN COMMAND: userStatus()
@@ -117,12 +140,29 @@ char *newargv[] = { "/bin/ls", NULL };
 */
 
 
-/* 
+/*  specialCasesCheck()
 *
-* Description:
+* Description: Checks for built-in functions, comments, and blank lines
+*
+*	Returns: 1 - if True
+*			 0 - Otherwise
 *
 *
 */
+int specialCasesCheck(char input[INPUT_LENGTH]){
+	// im passing in first word of original argument 
+	if(strcmp(input, "ls")){
+		printLs();
+	}
+}
+	// check for comment
+
+	// check for exit
+
+	// check for cd
+
+	// status
+
 
 
 /* 
@@ -140,9 +180,8 @@ int main()
 	while(true)
 	{
 		curr_command = parse_input();
-		//if (curr_command->input_file == NULL){continue;}	// CHECK ME
 
-		// do 3 string compares? 
+		printf("here is the input file name saved aka first text: %s\n", curr_command->input_file);
 
 	}
 
