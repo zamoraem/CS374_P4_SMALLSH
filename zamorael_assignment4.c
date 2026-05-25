@@ -1,9 +1,10 @@
-
 /**
-* A sample program for parsing a command line. If you find it useful,
-* feel free to adapt this code for Assignment 4.
-* Do fix memory leaks and any additional issues you find.
+* 	CS374 : Operating Systems I
+* 	Programming Assignment 4: SMALLSH
+* 
+*	Elaine Zamora
 */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -18,6 +19,9 @@
 #define MAX_ARGS 512
 #define MAX_BG 100
 
+// prototypes
+void checkBgProcesses();
+
 
 // Global variables to track the shell's status and background processes
 int lastForegroundStatus = 0;
@@ -25,7 +29,10 @@ int backgroundAllowed = 1; // 1 = normal, 0 = foreground-only mode (toggled by S
 pid_t backgroundPids[MAX_BG];
 int backgroundCount = 0;
 
-
+/*
+*	struct command_line
+*	Source: Provided via SMALLSH project description
+*/
 struct command_line{
 	char *argv[MAX_ARGS + 1];
 	int argc;
@@ -34,11 +41,15 @@ struct command_line{
 	bool is_bg;
 };
 
+void checkBgProcesses() { return; }
 
 /*
 *	parse_input()
 *
-*	Provided via SMALLSH project description
+*	Input:  Empty struct to populate via user input
+*	Objective: Populates struct using user input
+*
+*	Source: Skeleton provided via SMALLSH project description
 *
 */
 struct command_line *parse_input()
@@ -93,10 +104,11 @@ struct command_line *parse_input()
 *	executeOtherCommand()
 *
 *	Input: command_line struct
-* 	Objective: Attempts to execute command
+* 	Objective: Attempts to execute user defined command
 *
-*	Source: modeled off code in Exploration: Process API - creating and
+*	Source: Modeled off code in Exploration: Process API - creating and
 *		terminating processes
+*
 */
 void executeOtherCommand(struct command_line *curr_command){
 	pid_t spawnpid = fork();
@@ -107,13 +119,10 @@ void executeOtherCommand(struct command_line *curr_command){
 			lastForegroundStatus = 1;	// mark as failed
 			exit(EXIT_FAILURE);
 		case 0: 
-
-
-		
 			// fork successful, use execvp to confirm cmd is valid in PATH
 			execvp(curr_command->argv[0], curr_command->argv);
 
-			perror("Invalid command entered! Please try again.");
+			perror("Invalid command entered!");
 			exit(EXIT_FAILURE);
 		default:
 			// parent waits for child to finish
@@ -124,17 +133,17 @@ void executeOtherCommand(struct command_line *curr_command){
 }
 
 
+
 int main()
 {
+
 	struct command_line *curr_command;
 
 	while(true){
-		// kill zombies, clean up shop
-		int bgStatus;
-		pid_t 
-	}
+		// background process check 
+		checkBgProcesses();
 
-
+		// prompt user for new cmd
 		curr_command = parse_input();
 
 		// runs if the user typed something, didn't immediately hit enter
@@ -143,7 +152,6 @@ int main()
 			
 			// check for exit
 			if (strcmp(curr_command->argv[0], "exit") == 0) {
-				// Clean up memory or kill processes here later
 				exit(EXIT_SUCCESS); 
 			} 	
 			// check for cd
@@ -170,7 +178,27 @@ int main()
 			else{
 				executeOtherCommand(curr_command);
 			}
+
 		}
+		/****************  memory leak cleanup  ****************/
+
+		// free mem allocated for string duplicates
+		for (int i = 0; i < curr_command->argc; i++) {
+        	if (curr_command->argv[i] != NULL) {
+            	free(curr_command->argv[i]);
+        	}
+    	}
+		// free mem allocated for in/out file data
+		if (curr_command->input_file != NULL) {
+			free(curr_command->input_file);
+		}
+		if (curr_command->output_file != NULL) {
+			free(curr_command->output_file);
+		}
+	
+		// free mem allocated for struct/mem pointers to data
+		free(curr_command);
+		
 	}
 	return EXIT_SUCCESS;
 }
