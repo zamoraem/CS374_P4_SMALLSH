@@ -119,6 +119,38 @@ void executeOtherCommand(struct command_line *curr_command){
 			lastForegroundStatus = 1;	// mark as failed
 			exit(EXIT_FAILURE);
 		case 0: 
+			/******  handle file redirection  ******/ 
+
+			// handle input <
+			if (curr_command->input_file != NULL) {	 			// open file
+				int inFile = open(curr_command->input_file, O_RDONLY);
+				if (inFile == -1){
+					perror("Cannot open input file.");
+					exit(EXIT_FAILURE);
+				}		
+				int inStatus = dup2(inFile, STDIN_FILENO);  	// handle redirect
+				if (inStatus == -1){
+					perror("Input redirect failed.");
+					exit(EXIT_FAILURE);
+				}
+				close(inFile);
+			}
+
+			// handle output >
+			if (curr_command->output_file != NULL){				// open file
+				int outFile = open(curr_command->output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				if (outFile == -1){
+					perror("Cannot open file.");
+					exit(EXIT_FAILURE);
+				}
+				int outStatus = dup2(outFile, STDOUT_FILENO);	// handle redirect
+				if (outStatus == -1){
+					perror("Output redirect failed.");
+					exit(EXIT_FAILURE);
+				}
+				close(outFile);
+			}
+
 			// fork successful, use execvp to confirm cmd is valid in PATH
 			execvp(curr_command->argv[0], curr_command->argv);
 
