@@ -1,27 +1,32 @@
-/*
- * A sample program for parsing a command line. If you find it useful,
- * feel free to adapt this code for Assignment 4.
- * Do fix memory leaks and any additional issues you find.
- */
 
+/**
+* A sample program for parsing a command line. If you find it useful,
+* feel free to adapt this code for Assignment 4.
+* Do fix memory leaks and any additional issues you find.
+*/
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>	// used for exec
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
 
 #define INPUT_LENGTH 2048
-#define MAX_ARGS		 512
-
-// prototypes 
-int specialCasesCheck(char input[INPUT_LENGTH]);
-void printLs(void);
-void userExit(void);
-void userCd(char *directory);
+#define MAX_ARGS 512
+#define MAX_BG 100
 
 
-struct command_line
-{
+// Global variables to track the shell's status and background processes
+int lastForegroundStatus = 0;
+int backgroundAllowed = 1; // 1 = normal, 0 = foreground-only mode (toggled by SIGTSTP)
+pid_t backgroundPids[MAX_BG];
+int backgroundCount = 0;
+
+
+struct command_line{
 	char *argv[MAX_ARGS + 1];
 	int argc;
 	char *input_file;
@@ -30,23 +35,36 @@ struct command_line
 };
 
 
+/*
+*	parse_input()
+*
+*	Provided via SMALLSH project description
+*
+*/
 struct command_line *parse_input()
 {
 	char input[INPUT_LENGTH];
 	struct command_line *curr_command = (struct command_line *) calloc(1, sizeof(struct command_line));
 
-	// Get input
+	// get input
 	printf(": ");
 	fflush(stdout);
-	fgets(input, INPUT_LENGTH, stdin);
+
+	if (fgets(input, INPUT_LENGTH, stdin) == NULL) {
+        printf("\n");
+        exit(0); // Exit shell if EOF/CTRL-D happens - test this
+    }
+
+	// Strip trailing newline character
+    input[strcspn(input, "\n")] = '\0';
+
+	// If it's a completely blank line or a comment line, return the empty struct
+    if (strlen(input) == 0 || input[0] == '#') {
+        return curr_command;
+    }
 
 	// Tokenize the input
 	char *token = strtok(input, " \n");
-
-	// check for special cases here - exit or cd? who takes args?
-	printf("here is the first part of input from user: %s\n", token);
-
-
 	while(token){
 		if(!strcmp(token,"<")){
 			curr_command->input_file = strdup(strtok(NULL," \n"));
@@ -60,150 +78,99 @@ struct command_line *parse_input()
 		token=strtok(NULL," \n");
 	}
 
+	// add NULL to indicate end of line 
+	curr_command->argv[curr_command->argc] = NULL;
+
+    // turn off background execution if SIGTSTP mode is active
+    if (curr_command->is_bg && backgroundAllowed == 0) {
+        curr_command->is_bg = false;
+    }
 	return curr_command;
 }
 
 
-/* printLs()
+/*
+*	executeOtherCommand()
 *
-* Description: uses exec to execute "ls" command
+*	Input: command_line struct
+* 	Objective: Attempts to execute command
 *
-*
+*	Source: modeled off code in Exploration: Process API - creating and
+*		terminating processes
 */
-void printLs(void)
-{
-char *newargv[] = { "/bin/ls", NULL };
-	execv(newargv[0], newargv);
+void executeOtherCommand(struct command_line *curr_command){
+	pid_t spawnpid = fork();
 
-	/* exec returns only on error */
-	perror("execv");
-	exit(EXIT_FAILURE);
-
-}
-
-/* killMyProcesses()
-*
-* 	Description: 
-*				should i take as input the current path? or pid and ppid??
-*	
-*/
+	switch (spawnpid){
+		case -1:
+			perror("Fork failed!");
+			lastForegroundStatus = 1;	// mark as failed
+			exit(EXIT_FAILURE);
+		case 0: 
 
 
-/* BUILT IN COMMAND: userExit()
-*
-* Description:
-*		When the user enters "exit" command, exits the shell. 
-*		It takes no arguments.
-*		When this command is run, the shell kills:
-*			- Any other processes or jobs that the shell has started 
-*			before it terminates itself.
-*
-*/
-void userExit(void){
-	// killMyProcesses()
+		
+			// fork successful, use execvp to confirm cmd is valid in PATH
+			execvp(curr_command->argv[0], curr_command->argv);
 
-	// do i need to pass a pid or something, or ppid?
-	
-	// terminate myself
+			perror("Invalid command entered! Please try again.");
+			exit(EXIT_FAILURE);
+		default:
+			// parent waits for child to finish
+			waitpid(spawnpid, &lastForegroundStatus, 0);
+			break;
 
-	return;
-}
-
-
-/* BUILT IN COMMAND: userCd()
-*
-* 	Description: changes the working directory of smallsh
-*
-*	Input: Can take 0 or 1 argument
-*		- No argument will change to the directory
-*				specified in the HOME environment variable
-*		- Argument:  the path of a directory to change to
-*				(Supports absolute and relative paths)
-*
-*/
-void userCd(char *directory){
-	// handle 0 argument case, go HOME
-	if( directory == NULL){
-		// go home
-	}
-	// handle 1 argument case, follow the path
-
-}
-
-
-/* BUILT IN COMMAND: userStatus()
-*
-* 	Description:  prints out either the exit status or the terminating 
-*		signal of the last foreground process ran by the shell
-*
-*	If this command is run before any foreground command is run, then it 
-*		must simply return the exit status 0.
-*
-*	The three built-in shell commands do not count as foreground processes 
-*		for the purposes of this built-in command - i.e., status must ignore 
-*		built-in commands.
-*
-*/
-
-
-/*  specialCasesCheck()
-*
-* Description: Checks for built-in functions, comments, and blank lines
-*
-*	Returns: 1 - if True
-*			 0 - Otherwise
-*
-*
-*/
-int specialCasesCheck(char input[INPUT_LENGTH]){
-	// im passing in first word of original argument 
-	if(strcmp(input, "ls")){
-		printLs();
 	}
 }
-	// check for comment
-
-	// check for exit
-
-	// check for cd
-
-	// status
-
-
-
-/* 
-*
-* Description:
-*
-*
-*/
 
 
 int main()
 {
 	struct command_line *curr_command;
 
-	while(true)
-	{
-		curr_command = parse_input();
-		// check for special cases
+	while(true){
+		// kill zombies, clean up shop
+		int bgStatus;
+		pid_t 
 	}
 
+
+		curr_command = parse_input();
+
+		// runs if the user typed something, didn't immediately hit enter
+		if (curr_command->argc > 0) {
+			// CHECK BUILT IN-S FIRST
+			
+			// check for exit
+			if (strcmp(curr_command->argv[0], "exit") == 0) {
+				// Clean up memory or kill processes here later
+				exit(EXIT_SUCCESS); 
+			} 	
+			// check for cd
+			else if (strcmp(curr_command->argv[0], "cd") == 0) {
+				// if user types 'cd' without dir, use getenv("HOME")
+				char *targetDir = curr_command->argv[1]; 
+				if (targetDir == NULL) {
+					targetDir = getenv("HOME");
+				}	
+				if (chdir(targetDir) != 0) {
+					perror("cd failed");
+				}
+			}
+			// check for status
+			else if (strcmp(curr_command->argv[0], "status") == 0){
+				// check if process exited normally or was killed
+				if (WIFEXITED(lastForegroundStatus)) {
+					printf("exit value %d\n", WEXITSTATUS(lastForegroundStatus));
+				} else {
+					printf("terminated by signal %d\n", WTERMSIG(lastForegroundStatus));
+				}
+				fflush(stdout); 
+			}
+			else{
+				executeOtherCommand(curr_command);
+			}
+		}
+	}
 	return EXIT_SUCCESS;
 }
-
-
-/*
-*
-*	functions :
-*				killProcess()
-*
-*				
-*
-*
-*
-*
-*
-*
-*
-*/
