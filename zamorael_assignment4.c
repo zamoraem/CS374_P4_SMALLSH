@@ -20,19 +20,6 @@
 #define MAX_BG 100
 
 
-// prototypes
-void checkBgProcesses();
-void executeOtherCommand(struct command_line *curr_command);
-struct command_line *parse_input();
-
-
-// Global variables to track the shell's status and background processes
-int lastForegroundStatus = 0;
-int backgroundAllowed = 1; // 1 = normal, 0 = fg only mode
-pid_t backgroundPids[MAX_BG];
-int backgroundCount = 0;
-
-
 /*
 *	struct command_line
 *
@@ -45,6 +32,19 @@ struct command_line{
 	char *output_file;
 	bool is_bg;
 };
+
+
+
+// prototypes
+void checkBgProcesses();
+void executeOtherCommand(struct command_line *curr_command);
+
+
+// Global variables to track the shell's status and background processes
+int lastForegroundStatus = 0;
+int backgroundAllowed = 1; // 1 = normal, 0 = fg only mode
+pid_t backgroundPids[MAX_BG];
+int backgroundCount = 0;
 
 
 /*
@@ -63,7 +63,7 @@ void checkBgProcesses() {
 	while ((finishedPid = waitpid(-1, &bgStatus, WNOHANG)) > 0) {
 		printf("background pid %d is done: ", finishedPid);
 		if (WIFEXITED(bgStatus)) {
-			print("background pid %d is done: ", finishedPid);
+			printf("background pid %d is done: ", finishedPid);
 		}
 		else {
 			printf("terminated by signal: %d\n", WTERMSIG(bgStatus));
