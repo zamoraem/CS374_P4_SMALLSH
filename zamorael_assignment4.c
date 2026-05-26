@@ -61,7 +61,7 @@ void checkBgProcesses() {
 	pid_t finishedPid;
 
 	while ((finishedPid = waitpid(-1, &bgStatus, WNOHANG)) > 0) {
-		printf("background pid %d is done: ", finishedPid);
+		printf("background pid %d is done: "\n, finishedPid);
 		if (WIFEXITED(bgStatus)) {
 			printf("background pid %d is done: ", finishedPid);
 		}
