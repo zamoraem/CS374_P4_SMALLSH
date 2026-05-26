@@ -19,18 +19,23 @@
 #define MAX_ARGS 512
 #define MAX_BG 100
 
+
 // prototypes
 void checkBgProcesses();
+void executeOtherCommand(struct command_line *curr_command);
+struct command_line *parse_input();
 
 
 // Global variables to track the shell's status and background processes
 int lastForegroundStatus = 0;
-int backgroundAllowed = 1; // 1 = normal, 0 = foreground-only mode (toggled by SIGTSTP)
+int backgroundAllowed = 1; // 1 = normal, 0 = fg only mode
 pid_t backgroundPids[MAX_BG];
 int backgroundCount = 0;
 
+
 /*
 *	struct command_line
+*
 *	Source: Provided via SMALLSH project description
 */
 struct command_line{
@@ -41,7 +46,37 @@ struct command_line{
 	bool is_bg;
 };
 
-void checkBgProcesses() { return; }
+
+/*
+*	checkBgProcesses()
+*
+* 	Objective: 
+*
+*	Source: Modeled off code in Exploration: 
+*			Process API - Monitoring Child Processes
+*
+*/
+void checkBgProcesses() {
+	int bgStatus;
+	pid_t finishedPid;
+
+	while ((finishedPid = waitpid(-1, &bgStatus, WNOHANG)) > 0) {
+		printf("background pid %d is done: ", finishedPid);
+		if (WIFEXITED(bgStatus)) {
+			print("background pid %d is done: ", finishedPid);
+		}
+		else {
+			printf("terminated by signal: %d\n", WTERMSIG(bgStatus));
+		}
+		fflush(stdout);
+	}
+	
+	for (int i = 1; i < backgroundCount; i++){
+		if (backgroundPids[i] == finishedPid){
+			backgroundPids[i] = -1;
+		}
+	}
+}
 
 /*
 *	parse_input()
@@ -157,10 +192,23 @@ void executeOtherCommand(struct command_line *curr_command){
 			perror("Invalid command entered!");
 			exit(EXIT_FAILURE);
 		default:
-			// parent waits for child to finish
-			waitpid(spawnpid, &lastForegroundStatus, 0);
+			// parent will execute this portion
+			if (!curr_command->is_bg){
+				waitpid(spawnpid, &lastForegroundStatus, 0);
+				if (WIFSIGNALED(lastForegroundStatus)){
+					printf("Killed by this signal: %d\n", WTERMSIG(lastForegroundStatus));
+					fflush(stdout);
+				}
+			}
+			else{
+				printf("Bg pid: %d\n", spawnpid);
+				fflush(stdout);
+				// save pid, will clean up later
+				if (backgroundCount < MAX_BG){
+					backgroundPids[backgroundCount++] = spawnpid;
+				}
+			}
 			break;
-
 	}
 }
 
@@ -227,7 +275,7 @@ int main()
 		if (curr_command->output_file != NULL) {
 			free(curr_command->output_file);
 		}
-	
+
 		// free mem allocated for struct/mem pointers to data
 		free(curr_command);
 		
